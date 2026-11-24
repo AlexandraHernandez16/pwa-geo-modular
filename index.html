@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Geo Modular PWA</title>
+  <meta name="description" content="Geolocalización consciente y reutilizable con patrón de pre-permiso.">
+
+  <!-- Android / Chrome -->
+  <meta name="theme-color" content="#0b5fff">
+  <link rel="manifest" href="./manifest.json">
+
+  <!-- iOS / Safari -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Geo PWA">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="barra">
+    <h1>Geo Modular</h1>
+    <span id="estadoRed" class="chip chip-red" role="status">En línea</span>
+  </header>
+
+  <main class="contenedor">
+
+    <!-- ===== Formulario de reporte (consumidor del helper) ===== -->
+    <section class="tarjeta" aria-labelledby="tituloReporte">
+      <h2 id="tituloReporte">Reporte técnico</h2>
+      <form id="formReporte" novalidate>
+        <label for="titulo">Título</label>
+        <input id="titulo" name="titulo" type="text" maxlength="80" placeholder="Ej. Falla en equipo de laboratorio" autocomplete="off" required>
+
+        <label for="descripcion">Descripción</label>
+        <textarea id="descripcion" name="descripcion" rows="3" maxlength="400" placeholder="Describe brevemente el problema" required></textarea>
+
+        <div class="bloque-ubicacion">
+          <button type="button" id="btnAdjuntar" class="btn btn-secundario">
+            <span aria-hidden="true">📍</span> Adjuntar mi ubicación
+          </button>
+          <span id="chipPermiso" class="chip chip-neutro" hidden></span>
+        </div>
+
+        <!-- Pre-permiso: explicación contextual (solo si el estado es 'prompt') -->
+        <div id="tarjetaPrePermiso" class="aviso aviso-info" role="region" aria-labelledby="tituloPre" hidden>
+          <h3 id="tituloPre">¿Por qué pedimos tu ubicación?</h3>
+          <p>Necesitamos tu ubicación aproximada para adjuntar las coordenadas al reporte técnico y calcular la sucursal más cercana. Solo se lee una vez, cuando tú lo confirmas, y no se comparte con terceros.</p>
+          <p class="nota">Después tu dispositivo mostrará su propio diálogo de permiso.</p>
+          <div class="fila">
+            <button type="button" id="btnConfirmarGeo" class="btn btn-primario">Compartir mi ubicación</button>
+            <button type="button" id="btnCancelarGeo" class="btn btn-texto">Ahora no</button>
+          </div>
+        </div>
+
+        <!-- Estado: leyendo -->
+        <div id="cargandoGeo" class="aviso aviso-neutro" role="status" aria-live="polite" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="textoCargando">Obteniendo coordenadas...</span>
+        </div>
+
+        <!-- Estado: error -->
+        <div id="errorGeo" class="aviso aviso-error" role="alert" hidden></div>
+
+        <!-- Permiso denegado: cómo reactivarlo -->
+        <div id="ayudaDenegado" class="aviso aviso-advertencia" hidden>
+          <h3>El permiso de ubicación está bloqueado</h3>
+          <p>Desde la app no es posible volver a abrir el diálogo. Para reactivarlo:</p>
+          <ul id="pasosReactivar"></ul>
+          <p class="nota">Mientras tanto puedes indicar tu zona manualmente.</p>
+        </div>
+
+        <!-- Plan B: selector manual -->
+        <div id="selectorManual" class="aviso aviso-neutro" role="group" aria-labelledby="tituloManual" hidden>
+          <h3 id="tituloManual">Indica tu zona manualmente</h3>
+          <label for="selectZona">Zona / ciudad</label>
+          <select id="selectZona">
+            <option value="">Selecciona una zona…</option>
+            <option>Cuernavaca</option>
+            <option>Jiutepec</option>
+            <option>Temixco</option>
+            <option>Emiliano Zapata</option>
+            <option>Xochitepec</option>
+            <option>Cuautla</option>
+            <option>Yautepec</option>
+            <option>Otra</option>
+          </select>
+          <label for="inputDireccion">Dirección o referencia (opcional)</label>
+          <input id="inputDireccion" type="text" maxlength="120" placeholder="Calle, colonia o referencia" autocomplete="street-address">
+          <div class="fila">
+            <button type="button" id="btnGuardarZona" class="btn btn-primario">Usar esta zona</button>
+          </div>
+        </div>
+
+        <!-- Resultado: ubicación adjunta -->
+        <div id="resultadoUbicacion" class="resultado" role="status" aria-live="polite" hidden>
+          <div class="resultado-cab">
+            <h3>Ubicación adjunta</h3>
+            <span id="badgePrecision" class="badge"></span>
+          </div>
+          <dl id="datosUbicacion" class="datos"></dl>
+          <a id="enlaceMapa" class="enlace" href="#" target="_blank" rel="noopener" hidden>Ver en el mapa ↗</a>
+          <button type="button" id="btnQuitarUbicacion" class="btn btn-texto">Quitar ubicación</button>
+        </div>
+
+        <button type="submit" class="btn btn-primario btn-ancho">Guardar reporte</button>
+        <p id="mensajeForm" class="nota" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <!-- ===== Reportes guardados ===== -->
+    <section class="tarjeta" aria-labelledby="tituloLista">
+      <div class="resultado-cab">
+        <h2 id="tituloLista">Reportes guardados</h2>
+        <button type="button" id="btnLimpiar" class="btn btn-texto" hidden>Borrar todo</button>
+      </div>
+      <ul id="listaReportes" class="lista"></ul>
+      <p id="listaVacia" class="nota">Aún no hay reportes.</p>
+    </section>
+
+  </main>
+
+  <!-- Orden obligatorio: primero el helper y después la lógica de la app -->
+  <script src="./geo-helper.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
